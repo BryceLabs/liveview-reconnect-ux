@@ -69,8 +69,9 @@ immediately.
 ## Possible follow-up in the Phoenix generator
 
 The generated `flash_group` shows the same red error toast for a short
-reconnect and a real outage. A neutral "Reconnecting…" pill that escalates to
-the error toast after a few seconds would pair well with this change, and
-needs no new LiveView API.
+reconnect and a real outage. The demo app also has a quieter two-stage
+indicator (`?ui=pill`): a neutral "Reconnecting…" pill that expands with a
+message and a Reload button if the connection is still down 5 seconds later.
+It only uses the existing bindings, so it could be a separate Phoenix PR.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
