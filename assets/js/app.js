@@ -29,8 +29,11 @@ import {hooks as colocatedHooks} from "phoenix-colocated/reconnect_demo"
 import topbar from "../vendor/topbar"
 import {startTimeline} from "./timeline"
 
-const client = new URLSearchParams(window.location.search).get("client") === "stock" ? "stock" : "patched"
+const params = new URLSearchParams(window.location.search)
+const client = params.get("client") === "stock" ? "stock" : "patched"
+const ui = params.get("ui") === "toast" ? "toast" : "pill"
 const LiveSocket = client === "stock" ? StockLiveSocket : PatchedLiveSocket
+document.documentElement.dataset.reconnectUi = ui
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -39,7 +42,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {...colocatedHooks},
 })
 
-startTimeline(liveSocket, client)
+startTimeline(liveSocket, {client, ui})
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})

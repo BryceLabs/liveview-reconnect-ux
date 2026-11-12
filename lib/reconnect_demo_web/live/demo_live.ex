@@ -10,7 +10,8 @@ defmodule ReconnectDemoWeb.DemoLive do
       slow: 0,
       expect:
         "The connection drops while you are on another tab and reconnects the moment you come back. " <>
-          "Stock: red toast on return. Patched: nothing (maybe a flash of the top bar)."
+          "Stock: the disconnected UI is already up when you return. " <>
+          "Patched: nothing, apart from a brief top bar."
     },
     "outage" => %{
       label: "Outage while away",
@@ -18,7 +19,8 @@ defmodule ReconnectDemoWeb.DemoLive do
       slow: 0,
       expect:
         "The server refuses connections for 20s. Come back during the outage. " <>
-          "Stock: toast is already up. Patched: toast appears 2s after you return, because it is a real outage."
+          "Stock: already up when you return. Patched: appears 2s after you return, because it is a real outage. " <>
+          "The pill expands with a Reload button 5s after it appears."
     },
     "slow_join" => %{
       label: "Slow rejoin (join timeout)",
@@ -26,8 +28,9 @@ defmodule ReconnectDemoWeb.DemoLive do
       slow: 15_000,
       expect:
         "Reconnects work, but mounting takes longer than the 10s join timeout. " <>
-          "Stock: \"Something went wrong!\" (server error). Patched: \"We can't find the internet\" (client error). " <>
-          "Both reload the page a few seconds later."
+          "Stock: reports a server error (\"Something went wrong!\"). " <>
+          "Patched: reports a lost connection (\"We can't find the internet\" toast, or the pill). " <>
+          "Both reload the page a few seconds after the timeout."
     }
   }
 
@@ -105,15 +108,20 @@ defmodule ReconnectDemoWeb.DemoLive do
           </p>
         </header>
 
-        <section class="flex flex-wrap items-center gap-3">
-          <span class="text-sm font-medium">Client:</span>
-          <div class="join" id="client-switch" phx-update="ignore">
-            <a href="?client=patched" class="btn btn-sm join-item" data-client="patched">
-              Patched
-            </a>
-            <a href="?client=stock" class="btn btn-sm join-item" data-client="stock">
-              Stock
-            </a>
+        <section class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium">Client</span>
+            <div class="join" id="client-switch" phx-update="ignore">
+              <a class="btn btn-sm join-item" data-param="client" data-value="patched">Patched</a>
+              <a class="btn btn-sm join-item" data-param="client" data-value="stock">Stock</a>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium">Indicator</span>
+            <div class="join" id="ui-switch" phx-update="ignore">
+              <a class="btn btn-sm join-item" data-param="ui" data-value="pill">Pill</a>
+              <a class="btn btn-sm join-item" data-param="ui" data-value="toast">Toast</a>
+            </div>
           </div>
           <span class="text-sm text-base-content/60">
             Connected since {@connected_at} UTC
@@ -124,7 +132,8 @@ defmodule ReconnectDemoWeb.DemoLive do
           <h2 class="font-semibold">1. Pick a scenario, then switch to another tab</h2>
           <p class="text-sm text-base-content/70">
             The connection drops {delay_s()}s after you click. Stay away for a few
-            seconds, then come back and watch the toast in the corner.
+            seconds, then come back and watch the bottom of the screen (pill)
+            or the top right corner (toast).
           </p>
           <div :if={@pending} class="alert alert-info" id="countdown">
             Dropping in {@countdown}s. Switch tabs now.

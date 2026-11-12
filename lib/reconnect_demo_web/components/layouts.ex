@@ -117,6 +117,60 @@ defmodule ReconnectDemoWeb.Layouts do
         Attempting to reconnect
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
+
+      <.reconnect_indicator />
+    </div>
+    """
+  end
+
+  @doc """
+  A quiet alternative to the client-error and server-error toasts.
+
+  It starts as a small neutral "Reconnecting…" pill. If the connection is still
+  down 5 seconds later, CSS expands it into a message with a Reload button.
+  The styles live in `assets/css/app.css` under "Reconnect indicator".
+  """
+  def reconnect_indicator(assigns) do
+    ~H"""
+    <div
+      id="reconnect-indicator"
+      class="reconnect-indicator"
+      role="status"
+      phx-disconnected={
+        JS.remove_attribute("hidden", to: "#reconnect-indicator")
+        |> JS.show(
+          to: "#reconnect-indicator",
+          display: "flex",
+          time: 150,
+          transition: {"transition-opacity duration-150 ease-out", "opacity-0", "opacity-100"}
+        )
+      }
+      phx-connected={
+        JS.hide(
+          to: "#reconnect-indicator",
+          time: 150,
+          transition: {"transition-opacity duration-150 ease-in", "opacity-100", "opacity-0"}
+        )
+      }
+      hidden
+    >
+      <div class="reconnect-indicator-pill">
+        <span class="reconnect-indicator-dot" aria-hidden="true"></span>
+        <span>Reconnecting…</span>
+      </div>
+      <div class="reconnect-indicator-more">
+        <div>
+          <p class="reconnect-indicator-client">
+            Connection lost. We'll keep trying.
+          </p>
+          <p class="reconnect-indicator-server">
+            Something went wrong on our end. We'll keep trying.
+          </p>
+          <button type="button" class="btn btn-xs" onclick="window.location.reload()">
+            Reload
+          </button>
+        </div>
+      </div>
     </div>
     """
   end

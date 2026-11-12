@@ -43,12 +43,17 @@ mix phx.server
 
 Open <http://localhost:4000>, then:
 
-1. Pick the **Patched** or **Stock** client at the top of the page
-   (`?client=patched` or `?client=stock`). The server is the same for both.
-2. Start a scenario and switch to another tab within 5 seconds.
-3. Wait a few seconds, come back, and watch the top right corner. The
-   timeline at the bottom of the page records when each toast appeared,
-   measured from when you returned.
+1. Pick the **Patched** or **Stock** client (`?client=patched|stock`). The
+   server is the same for both.
+2. Pick the **Pill** or **Toast** indicator (`?ui=pill|toast`). Toast is what
+   `mix phx.new` generates today; Pill is the proposed replacement (below).
+3. Start a scenario and switch to another tab within 5 seconds.
+4. Wait a few seconds, come back, and watch the bottom of the screen (pill) or
+   the top right corner (toast). The timeline at the bottom of the page records
+   when each indicator appeared, measured from when you returned.
+
+Stock client with the toast is today's experience. Patched client with the pill
+is the proposal.
 
 What to expect, measured in headless Chromium with an emulated hidden tab
 (times from when the tab became visible again):
@@ -59,6 +64,26 @@ What to expect, measured in headless Chromium with an emulated hidden tab
 | Outage while away (20s) | Toast already up | No toast at +1.5s, toast at +2.0s |
 | Slow rejoin (join timeout) | "Something went wrong!" at +10.5s | "We can't find the internet" at +2.0s |
 | Drop while watching | No toast (fast reconnect) | Unchanged |
+
+## The reconnecting pill
+
+The generated layout shows the same red error toast for a half-second blip and
+a real outage. The pill is a quieter replacement for the Phoenix generator,
+needing no LiveView API beyond the existing `phx-disconnected` and
+`phx-connected` bindings:
+
+1. When `phx-disconnected` runs, a small neutral "Reconnecting…" pill fades in
+   at the bottom of the screen, with `role="status"`.
+2. If the connection is still down 5 seconds later, it expands with a plain
+   message and a Reload button. The message says whether the connection was
+   lost or the server failed.
+3. It fades out as soon as the connection is back.
+
+With the patched client, measured the same way: the pill appears at +2.0s
+during an outage, expands at +7.0s, and never appears for a blip. The component
+is `reconnect_indicator/1` in
+[`layouts.ex`](lib/reconnect_demo_web/components/layouts.ex), styled under
+"Reconnect indicator" in [`app.css`](assets/css/app.css).
 
 ## Use the fork in your own app
 

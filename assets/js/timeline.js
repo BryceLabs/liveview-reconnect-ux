@@ -3,9 +3,14 @@
 // timed from the moment the tab became visible again.
 
 const STORAGE_KEY = "reconnect-demo-timeline"
-const TOASTS = {
-  "client-error": "\"We can't find the internet\" toast",
-  "server-error": "\"Something went wrong!\" toast",
+const INDICATORS = {
+  toast: {
+    "client-error": "\"We can't find the internet\" toast",
+    "server-error": "\"Something went wrong!\" toast",
+  },
+  pill: {
+    "reconnect-indicator": "reconnecting pill",
+  },
 }
 
 let entries = []
@@ -44,22 +49,29 @@ const log = (text, {tone, sinceReturn = false} = {}) => {
   render()
 }
 
-const watchToasts = () => {
-  for (const [id, label] of Object.entries(TOASTS)) {
+const isShown = el => !el.hasAttribute("hidden") && el.style.display !== "none"
+
+const watchIndicators = ui => {
+  for (const [id, label] of Object.entries(INDICATORS[ui])) {
     const el = document.getElementById(id)
     if (!el || watched.has(el)) { continue }
     watched.add(el)
-    let visible = !el.hasAttribute("hidden")
+    let visible = isShown(el)
     new MutationObserver(() => {
-      const now = !el.hasAttribute("hidden")
+      const now = isShown(el)
       if (now === visible) { return }
       visible = now
       log(`${label} ${now ? "shown" : "hidden"}`, {tone: now ? "bad" : undefined, sinceReturn: true})
-    }).observe(el, {attributes: true, attributeFilter: ["hidden"]})
+    }).observe(el, {attributes: true, attributeFilter: ["hidden", "style"]})
+    el.addEventListener("animationstart", e => {
+      if (e.animationName === "reconnect-indicator-expand") {
+        log(`${label} expanded with a Reload button`, {tone: "bad", sinceReturn: true})
+      }
+    })
   }
 }
 
-export function startTimeline(liveSocket, client) {
+export function startTimeline(liveSocket, {client, ui}) {
   load()
   const socket = liveSocket.getSocket()
 
@@ -80,20 +92,25 @@ export function startTimeline(liveSocket, client) {
   window.addEventListener("phx:page-loading-stop", () => {
     // the LiveView re-rendered, so make sure the timeline and toasts are wired
     render()
-    watchToasts()
+    watchIndicators(ui)
   })
 
   document.addEventListener("DOMContentLoaded", () => {
     render()
-    watchToasts()
-    for (const link of document.querySelectorAll("[data-client]")) {
-      link.classList.toggle("btn-active", link.dataset.client === client)
+    watchIndicators(ui)
+    const current = {client, ui}
+    for (const link of document.querySelectorAll("[data-param]")) {
+      const {param, value} = link.dataset
+      const url = new URL(window.location.href)
+      url.searchParams.set(param, value)
+      link.href = url.search
+      link.classList.toggle("btn-active", current[param] === value)
     }
     document.getElementById("clear-timeline")?.addEventListener("click", () => {
       entries = []
       save()
       render()
     })
-    log(`page loaded with the ${client} client`)
+    log(`page loaded with the ${client} client and the ${ui} indicator`)
   })
 }
