@@ -1,5 +1,8 @@
 # LiveView reconnect UX demo
 
+**Try it live: <https://phoenix.brycelabs.com>** (simulated outages only affect
+your own tab).
+
 Come back to a Phoenix LiveView tab that has been in the background for a while
 and you are often greeted by a red "Something went wrong! Attempting to
 reconnect" toast. Usually nothing is wrong: the connection dropped while the tab
@@ -30,7 +33,7 @@ and is meant as an upstream pull request to `phoenixframework/phoenix_live_view`
 Nothing changes for a tab you are looking at: drops still show the toast after
 500ms if the socket has not come back.
 
-## Try it
+## Run it locally
 
 You need Elixir 1.15+ and Erlang/OTP 26+.
 
