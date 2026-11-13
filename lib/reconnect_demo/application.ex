@@ -11,6 +11,7 @@ defmodule ReconnectDemo.Application do
       ReconnectDemoWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:reconnect_demo, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ReconnectDemo.PubSub},
+      ReconnectDemo.Chaos,
       # Start a worker by calling: ReconnectDemo.Worker.start_link(arg)
       # {ReconnectDemo.Worker, arg},
       # Start to serve requests, typically the last entry

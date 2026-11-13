@@ -38,13 +38,16 @@ defmodule ReconnectDemoWeb.DemoLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(ReconnectDemo.PubSub, Chaos.topic())
-      if Chaos.slow_mount?(), do: Process.sleep(Chaos.slow_mount_sleep())
+    chaos_id = if connected?(socket), do: Chaos.valid_id(get_connect_params(socket)["chaos_id"])
+
+    if chaos_id do
+      Phoenix.PubSub.subscribe(ReconnectDemo.PubSub, Chaos.topic(chaos_id))
+      if Chaos.slow_mount?(chaos_id), do: Process.sleep(Chaos.slow_mount_sleep())
     end
 
     {:ok,
      assign(socket,
+       chaos_id: chaos_id,
        scenarios: @scenarios,
        pending: nil,
        countdown: 0,
@@ -54,13 +57,18 @@ defmodule ReconnectDemoWeb.DemoLive do
   end
 
   @impl true
+  def handle_event(event, _params, %{assigns: %{chaos_id: nil}} = socket)
+      when event in ["arm", "drop_now"] do
+    {:noreply, put_flash(socket, :error, "This tab has no chaos id. Reload the page.")}
+  end
+
   def handle_event("arm", %{"scenario" => key}, socket) when is_map_key(@scenarios, key) do
     Process.send_after(self(), :tick, 1000)
     {:noreply, assign(socket, pending: key, countdown: @delay_s)}
   end
 
   def handle_event("drop_now", _params, socket) do
-    Chaos.drop_all(0)
+    Chaos.drop(socket.assigns.chaos_id, 0)
     {:noreply, socket}
   end
 
@@ -78,7 +86,7 @@ defmodule ReconnectDemoWeb.DemoLive do
 
   def handle_info(:tick, socket) do
     scenario = @scenarios[socket.assigns.pending]
-    Chaos.drop_all(scenario.outage, scenario.slow)
+    Chaos.drop(socket.assigns.chaos_id, scenario.outage, scenario.slow)
     {:noreply, assign(socket, pending: nil, countdown: 0)}
   end
 

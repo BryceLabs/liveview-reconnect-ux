@@ -1,0 +1,61 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.0.1"
+          elixir-version: "1.20.1"
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+
+  # Builds a self-contained release (ERTS included) for Ubuntu 24.04 x86_64,
+  # the OS of the demo host, which has no Erlang installed.
+  release:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.0.1"
+          elixir-version: "1.20.1"
+      - run: mix deps.get --only prod
+      - run: mix compile --warnings-as-errors
+      - run: mix assets.setup
+      - run: mix assets.deploy
+      - run: mix release --overwrite
+      - name: Package
+        run: |
+          name="reconnect_demo-${GITHUB_SHA}"
+          echo "${GITHUB_SHA}" > _build/prod/rel/reconnect_demo/REVISION
+          tar -C _build/prod/rel/reconnect_demo -czf "${name}.tar.gz" .
+          sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reconnect_demo-${{ github.sha }}
+          path: reconnect_demo-${{ github.sha }}.tar.gz*
+          retention-days: 30

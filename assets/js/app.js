@@ -36,9 +36,20 @@ const LiveSocket = client === "stock" ? StockLiveSocket : PatchedLiveSocket
 document.documentElement.dataset.reconnectUi = ui
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+// Simulated outages only affect the tab that starts them, see ReconnectDemo.Chaos
+const chaosId = (() => {
+  try {
+    const id = sessionStorage.getItem("chaos-id") || crypto.randomUUID()
+    sessionStorage.setItem("chaos-id", id)
+    return id
+  } catch (_e) {
+    return crypto.randomUUID()
+  }
+})()
 const liveSocket = new LiveSocket("/live", Socket, {
   // No long poll fallback, so both clients reconnect the same way
-  params: {_csrf_token: csrfToken},
+  params: {_csrf_token: csrfToken, chaos_id: chaosId},
   hooks: {...colocatedHooks},
 })
 

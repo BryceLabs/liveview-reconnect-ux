@@ -1,40 +1,70 @@
 defmodule ReconnectDemo.Chaos do
   @moduledoc """
-  Global switches that simulate network trouble for every connected tab.
+  Switches that simulate network trouble for a single browser tab.
 
-  * an outage refuses new LiveView socket connections until it ends
-  * slow mounts make connected mounts sleep past the client's join timeout
+  Each tab sends a random `chaos_id` with its socket connect params, so on the
+  public demo one visitor's simulated outage never affects anyone else.
+
+  * an outage refuses that tab's socket connections until it ends
+  * slow mounts make that tab's connected mounts sleep past the join timeout
   """
+  use GenServer
 
-  @topic "chaos"
+  @table __MODULE__
+  @sweep_every :timer.minutes(1)
 
   # phoenix.js waits 10s for a join reply before giving up
   @slow_mount_sleep 12_000
 
-  def topic, do: @topic
+  def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
-  @doc "Drops every LiveView connection, then refuses reconnects for `outage_ms`."
-  def drop_all(outage_ms, slow_mount_ms \\ 0) do
-    set_until(:outage_until, outage_ms)
-    set_until(:slow_mount_until, slow_mount_ms)
-    Phoenix.PubSub.broadcast(ReconnectDemo.PubSub, @topic, :drop_connection)
+  def topic(id), do: "chaos:" <> id
+
+  @doc "Returns the chaos id when it is well formed, otherwise nil."
+  def valid_id(id) when is_binary(id) and byte_size(id) in 8..64 do
+    if id =~ ~r/\A[A-Za-z0-9-]+\z/, do: id
   end
 
-  def outage?, do: active?(:outage_until)
-  def slow_mount?, do: active?(:slow_mount_until)
+  def valid_id(_id), do: nil
+
+  @doc "Drops the tab's LiveView connection, then refuses its reconnects for `outage_ms`."
+  def drop(id, outage_ms, slow_mount_ms \\ 0) do
+    set_until(id, :outage, outage_ms)
+    set_until(id, :slow_mount, slow_mount_ms)
+    Phoenix.PubSub.broadcast(ReconnectDemo.PubSub, topic(id), :drop_connection)
+  end
+
+  def outage?(id), do: active?(id, :outage)
+  def slow_mount?(id), do: active?(id, :slow_mount)
   def slow_mount_sleep, do: @slow_mount_sleep
 
-  defp set_until(key, ms) do
-    :persistent_term.put({__MODULE__, key}, now() + ms)
-  end
+  defp set_until(id, kind, ms) when ms > 0, do: :ets.insert(@table, {{id, kind}, now() + ms})
+  defp set_until(id, kind, _ms), do: :ets.delete(@table, {id, kind})
 
-  # monotonic time can be negative, so an unset switch must not default to 0
-  defp active?(key) do
-    case :persistent_term.get({__MODULE__, key}, nil) do
-      nil -> false
-      until -> until > now()
+  defp active?(nil, _kind), do: false
+
+  defp active?(id, kind) do
+    case :ets.lookup(@table, {id, kind}) do
+      [{_key, until}] -> until > now()
+      [] -> false
     end
   end
 
   defp now, do: System.monotonic_time(:millisecond)
+
+  @impl true
+  def init(nil) do
+    :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
+    schedule_sweep()
+    {:ok, nil}
+  end
+
+  @impl true
+  def handle_info(:sweep, state) do
+    :ets.select_delete(@table, [{{:_, :"$1"}, [{:<, :"$1", now()}], [true]}])
+    schedule_sweep()
+    {:noreply, state}
+  end
+
+  defp schedule_sweep, do: Process.send_after(self(), :sweep, @sweep_every)
 end
